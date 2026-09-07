@@ -1,0 +1,734 @@
+/* ==========================================================================
+   CUBESAT MISSION CONTROL TELEMETRY - DESIGN SYSTEM
+   ========================================================================== */
+
+:root {
+  --bg-space: #060911;
+  --bg-panel: rgba(13, 20, 36, 0.75);
+  --bg-panel-hover: rgba(18, 28, 50, 0.85);
+  --border-glow: rgba(0, 240, 255, 0.18);
+  --border-focus: rgba(0, 240, 255, 0.6);
+  
+  --cyan: #00f0ff;
+  --cyan-dim: rgba(0, 240, 255, 0.15);
+  --lime: #00ff88;
+  --lime-dim: rgba(0, 255, 136, 0.15);
+  --amber: #ffb700;
+  --amber-dim: rgba(255, 183, 0, 0.15);
+  --red: #ff3366;
+  --red-dim: rgba(255, 51, 102, 0.15);
+  
+  --text-main: #e2e8f0;
+  --text-muted: #64748b;
+  --text-sub: #94a3b8;
+  
+  --font-hud: 'Orbitron', -apple-system, sans-serif;
+  --font-ui: 'Inter', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-space);
+  background-image: 
+    radial-gradient(circle at 10% 20%, rgba(0, 240, 255, 0.05) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(0, 255, 136, 0.04) 0%, transparent 40%),
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  min-height: 100vh;
+  overflow-x: hidden;
+  padding: 16px;
+}
+
+.dashboard-container {
+  max-width: 1720px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ==========================================================================
+   HUD HEADER
+   ========================================================================== */
+.hud-header {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+.header-branding {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.mission-badge {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mission-dot {
+  width: 10px;
+  height: 10px;
+  background: var(--cyan);
+  border-radius: 50%;
+  box-shadow: 0 0 12px var(--cyan);
+}
+
+.pulse-ring {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--cyan);
+  border-radius: 50%;
+  animation: radar-pulse 2s infinite ease-out;
+}
+
+@keyframes radar-pulse {
+  0% { transform: scale(0.5); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+
+.mission-title {
+  font-family: var(--font-hud);
+  font-size: 1.25rem;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+.mission-subtitle {
+  font-size: 0.72rem;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 2px;
+}
+
+.header-metrics {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.metric-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-card .label {
+  font-size: 0.65rem;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.metric-card .value {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.metric-card .val-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-indicator.online {
+  background: var(--lime);
+  box-shadow: 0 0 8px var(--lime);
+}
+
+.status-indicator.offline {
+  background: var(--red);
+  box-shadow: 0 0 8px var(--red);
+}
+
+/* ==========================================================================
+   GRID LAYOUT
+   ========================================================================== */
+.grid-layout {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 16px;
+}
+
+.panel-imu {
+  grid-column: span 4;
+}
+
+.panel-gps {
+  grid-column: span 5;
+}
+
+.panel-bmp {
+  grid-column: span 3;
+}
+
+.panel-mlx {
+  grid-column: span 3;
+}
+
+.panel-chart {
+  grid-column: span 9;
+}
+
+.panel-terminal {
+  grid-column: span 12;
+}
+
+@media (max-width: 1300px) {
+  .panel-imu { grid-column: span 6; }
+  .panel-gps { grid-column: span 6; }
+  .panel-bmp { grid-column: span 6; }
+  .panel-mlx { grid-column: span 6; }
+  .panel-chart { grid-column: span 12; }
+}
+
+@media (max-width: 768px) {
+  .panel-imu, .panel-gps, .panel-bmp, .panel-mlx, .panel-chart, .panel-terminal {
+    grid-column: span 12;
+  }
+}
+
+/* ==========================================================================
+   CARD BASE STYLES
+   ========================================================================== */
+.card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-glow);
+  backdrop-filter: blur(12px);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  overflow: hidden;
+}
+
+.card:hover {
+  border-color: var(--border-focus);
+  box-shadow: 0 8px 32px rgba(0, 240, 255, 0.08);
+}
+
+.card-header {
+  padding: 12px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.title-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hud-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--cyan);
+}
+
+.card-header h2 {
+  font-family: var(--font-hud);
+  font-size: 0.8rem;
+  letter-spacing: 1.5px;
+  color: var(--text-main);
+}
+
+.sensor-badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  color: var(--cyan);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.card-body {
+  padding: 16px;
+  flex: 1;
+}
+
+/* ==========================================================================
+   3D ATTITUDE VIEWPORT (MPU6050)
+   ========================================================================== */
+.attitude-viewport-container {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  background: radial-gradient(circle at center, #0e172e 0%, #060a14 100%);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 240, 255, 0.1);
+  overflow: hidden;
+}
+
+#threejs-attitude-canvas {
+  width: 100%;
+  height: 100%;
+}
+
+.attitude-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60px;
+  height: 60px;
+  border: 1px dashed rgba(0, 240, 255, 0.25);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.attitude-crosshair::before,
+.attitude-crosshair::after {
+  content: '';
+  position: absolute;
+  background: rgba(0, 240, 255, 0.4);
+}
+
+.attitude-crosshair::before {
+  top: 50%;
+  left: -10px;
+  right: -10px;
+  height: 1px;
+}
+
+.attitude-crosshair::after {
+  left: 50%;
+  top: -10px;
+  bottom: -10px;
+  width: 1px;
+}
+
+.attitude-angles-overlay {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 10px;
+  border-radius: 6px;
+  display: flex;
+  gap: 12px;
+}
+
+.readout-table {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.readout-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 1fr;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.readout-row.header {
+  font-family: var(--font-ui);
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 1px;
+  background: transparent;
+  border: none;
+}
+
+.axis-tag {
+  display: inline-block;
+  text-align: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.axis-tag.x { background: rgba(255, 51, 102, 0.2); color: var(--red); }
+.axis-tag.y { background: rgba(0, 255, 136, 0.2); color: var(--lime); }
+.axis-tag.z { background: rgba(0, 240, 255, 0.2); color: var(--cyan); }
+
+/* ==========================================================================
+   GPS MAP & TRACKING
+   ========================================================================== */
+.gps-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.map-container {
+  height: 250px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 240, 255, 0.15);
+  overflow: hidden;
+  background: #0d1424;
+}
+
+.sat-lock-badge {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  background: rgba(0, 255, 136, 0.1);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  padding: 3px 10px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gps-telemetry-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.gps-stat {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gps-label {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.gps-val {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* ==========================================================================
+   GAUGES & METRICS (BMP-280)
+   ========================================================================== */
+.gauge-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.metric-dial {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metric-name {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  letter-spacing: 1.2px;
+  font-weight: 600;
+}
+
+.big-metric-display {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.big-val {
+  font-family: var(--font-hud);
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.big-unit {
+  font-size: 0.8rem;
+  color: var(--text-sub);
+}
+
+.bar-gauge {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+.bar-fill.cyan { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+.bar-fill.lime { background: var(--lime); box-shadow: 0 0 8px var(--lime); }
+.bar-fill.amber { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+
+/* ==========================================================================
+   MLX90614 THERMAL GAUGES
+   ========================================================================== */
+.dual-thermo-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.thermo-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.thermo-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  display: block;
+}
+
+.thermo-val-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.thermo-val {
+  font-family: var(--font-hud);
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.thermo-unit {
+  font-size: 0.8rem;
+  color: var(--text-sub);
+}
+
+.thermo-subtext {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.delta-card {
+  border-color: rgba(255, 183, 0, 0.2);
+  background: rgba(255, 183, 0, 0.03);
+}
+
+/* ==========================================================================
+   CHART SECTION
+   ========================================================================== */
+.chart-legend-wrap {
+  font-size: 0.75rem;
+  color: var(--text-sub);
+  display: flex;
+  align-items: center;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.legend-dot.cyan { background: var(--cyan); }
+.legend-dot.amber { background: var(--amber); }
+.legend-dot.red { background: var(--red); }
+
+.chart-body {
+  height: 240px;
+  position: relative;
+}
+
+/* ==========================================================================
+   TERMINAL FEED
+   ========================================================================== */
+.terminal-body {
+  padding: 10px;
+  background: #04060b;
+}
+
+.terminal-ctrls button {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-sub);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.terminal-ctrls button:hover {
+  background: rgba(255, 51, 102, 0.2);
+  color: var(--red);
+  border-color: var(--red);
+}
+
+.btn-hud {
+  background: rgba(0, 240, 255, 0.1);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+}
+
+.btn-hud:hover {
+  background: rgba(0, 240, 255, 0.25);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+/* Map Dark Theme Tile Filter */
+.map-container .leaflet-tile-pane {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+.terminal-feed {
+  height: 120px;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px;
+}
+
+.terminal-feed::-webkit-scrollbar {
+  width: 4px;
+}
+
+.terminal-feed::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.2);
+  border-radius: 2px;
+}
+
+.log-line {
+  word-break: break-all;
+}
+
+.log-line.info { color: #38bdf8; }
+.log-line.telemetry { color: var(--lime); }
+.log-line.warn { color: var(--amber); }
+
+/* Floating RF Link Handshake Toast */
+.link-toast {
+  position: fixed;
+  top: 24px;
+  right: 28px;
+  z-index: 9999;
+  background: rgba(10, 18, 30, 0.95);
+  border: 1px solid var(--lime);
+  box-shadow: 0 0 25px rgba(0, 255, 136, 0.4), 0 8px 32px rgba(0, 0, 0, 0.6);
+  border-radius: 10px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  backdrop-filter: blur(16px);
+  transform: translateY(-20px);
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+}
+
+.link-toast.visible {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.link-toast.hidden {
+  display: none;
+}
+
+.toast-icon {
+  font-size: 1.6rem;
+  animation: pulse-ring 2s infinite ease-in-out;
+}
+
+.toast-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.toast-content strong {
+  font-family: var(--font-hud);
+  color: var(--lime);
+  font-size: 0.82rem;
+  letter-spacing: 1px;
+}
+
+.toast-content span {
+  font-family: var(--font-mono);
+  color: var(--text-main);
+  font-size: 0.72rem;
+}
+
+/* Utility Classes */
+.cyber-cyan { color: var(--cyan); }
+.cyber-lime { color: var(--lime); }
+.cyber-amber { color: var(--amber); }
+.cyber-red { color: var(--red); }
+.number-font { font-family: var(--font-mono); }
+.val-mono { color: #fff; font-weight: 500; }
