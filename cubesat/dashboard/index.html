@@ -266,6 +266,40 @@
         </div>
       </section>
 
+      <!-- RIGHT COLUMN: ANALOG IR SPECTROMETER (ADC1_CH6 / GPIO 34) -->
+      <section class="card panel-spec">
+        <div class="card-header">
+          <div class="title-with-icon">
+            <svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+              <polyline points="2 17 12 22 22 17"></polyline>
+              <polyline points="2 12 12 17 22 12"></polyline>
+            </svg>
+            <h2>ANALOG IR SPECTROMETER (GPIO 34)</h2>
+          </div>
+          <span class="sensor-badge">ADC1: 12-Bit</span>
+        </div>
+
+        <div class="card-body">
+          <div class="metric-dial">
+            <span class="metric-name">SPECTRAL RADIANCE INDEX</span>
+            <div class="big-metric-display">
+              <span class="big-val cyber-magenta" id="val-spec-pct">0.0</span>
+              <span class="big-unit">%</span>
+            </div>
+            <div class="bar-gauge">
+              <div class="bar-fill magenta" id="bar-spec" style="width: 10%;"></div>
+            </div>
+          </div>
+
+          <div class="spec-readout-row" style="margin-top: 14px; display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.75rem; background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 6px;">
+            <div>RAW ADC: <strong id="val-spec-raw" class="cyber-cyan">0</strong></div>
+            <div>VOLTAGE: <strong id="val-spec-v" class="cyber-lime">0.00 V</strong></div>
+            <div>STATUS: <strong id="val-spec-status" class="cyber-amber">SCANNING</strong></div>
+          </div>
+        </div>
+      </section>
+
       <!-- BOTTOM ROW 1: REAL-TIME CHART -->
       <section class="card panel-chart">
         <div class="card-header">

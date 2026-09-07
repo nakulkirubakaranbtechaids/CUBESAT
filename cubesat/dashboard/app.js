@@ -512,14 +512,48 @@ function processTelemetry(data) {
     console.warn('GPS UI update warning:', gpsErr);
   }
 
-  // 6. Update Real-Time Chart
+  // 6. Analog IR Spectrometer (GPIO 34 ADC1)
+  try {
+    if (data.spec) {
+      const specPct = data.spec.intensity || 0;
+      const specRaw = data.spec.raw || 0;
+      const specV = data.spec.voltage || 0;
+
+      const pctEl = document.getElementById('val-spec-pct');
+      const rawEl = document.getElementById('val-spec-raw');
+      const vEl = document.getElementById('val-spec-v');
+      const barEl = document.getElementById('bar-spec');
+      const statusEl = document.getElementById('val-spec-status');
+
+      if (pctEl) pctEl.innerText = specPct.toFixed(1);
+      if (rawEl) rawEl.innerText = specRaw;
+      if (vEl) vEl.innerText = specV.toFixed(2) + ' V';
+      if (barEl) barEl.style.width = Math.min(100, Math.max(5, specPct)) + '%';
+      if (statusEl) {
+        if (specPct > 70) {
+          statusEl.innerText = 'HIGH IR FLUX';
+          statusEl.className = 'cyber-red';
+        } else if (specPct > 25) {
+          statusEl.innerText = 'DIFFUSE AMBIENT';
+          statusEl.className = 'cyber-lime';
+        } else {
+          statusEl.innerText = 'LOW / SHADOW';
+          statusEl.className = 'cyber-cyan';
+        }
+      }
+    }
+  } catch (specErr) {
+    console.warn('Spectrometer UI update warning:', specErr);
+  }
+
+  // 7. Update Real-Time Chart
   try {
     updateChart(data.packet, bmpAlt, bmpTemp, objTemp);
   } catch (chartErr) {
     console.warn('Chart update warning:', chartErr);
   }
 
-  // 7. Add to Terminal Feed
+  // 8. Add to Terminal Feed
   try {
     if (data.raw) {
       addLogLine(`[PKT #${data.packet}] ${data.raw}`, 'telemetry');

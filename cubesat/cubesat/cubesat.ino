@@ -28,6 +28,9 @@
 #define GPS_TX_PIN 17 // Connect to GPS RX
 #define GPS_BAUD   9600
 
+// Analog IR Spectrometer Pin (ADC1 Channel 6)
+#define IR_SPEC_PIN 34
+
 // ==========================================
 // SENSOR OBJECTS & STATUS FLAGS
 // ==========================================
@@ -53,12 +56,18 @@ void setup() {
   Serial.println("   ESP32 CubeSat Telemetry Node Booting   ");
   Serial.println("==========================================");
 
-  // 1. Initialize I2C Bus at 100kHz (Required for MLX90614 SMBus compatibility)
+  // 1. Initialize Analog ADC for IR Spectrometer (12-bit, 0-3.3V)
+  analogReadResolution(12);
+  analogSetAttenuation(ADC_11db);
+  pinMode(IR_SPEC_PIN, INPUT);
+  Serial.println("[IR SPEC] Analog Spectrometer armed on GPIO 34 (ADC1_CH6 12-bit)");
+
+  // 2. Initialize I2C Bus at 100kHz (Required for MLX90614 SMBus compatibility)
   Wire.begin(I2C_SDA, I2C_SCL);
   Wire.setClock(100000);
   Serial.println("[I2C] Initialized on SDA: GPIO 21, SCL: GPIO 22 @ 100kHz");
 
-  // 2. Initialize MPU6050
+  // 3. Initialize MPU6050
   Serial.print("[MPU6050] Initializing... ");
   if (mpu.begin(0x68, &Wire)) {
     mpu_ok = true;
@@ -70,9 +79,8 @@ void setup() {
     Serial.println("FAILED! (Check wiring or AD0 pin)");
   }
 
-  // 3. Initialize BMP280
+  // 4. Initialize BMP280
   Serial.print("[BMP280] Initializing... ");
-  // Try default 0x76, fallback to 0x77
   if (bmp.begin(0x76)) {
     bmp_ok = true;
     Serial.println("SUCCESS (Address: 0x76)");
@@ -83,7 +91,7 @@ void setup() {
     Serial.println("FAILED! (Check wiring/SDO pin)");
   }
 
-  // 4. Initialize MLX90614
+  // 5. Initialize MLX90614
   Serial.print("[MLX90614] Initializing... ");
   if (mlx.begin(0x5A, &Wire)) {
     mlx_ok = true;
@@ -92,11 +100,11 @@ void setup() {
     Serial.println("FAILED! (Check wiring/power)");
   }
 
-  // 5. Initialize GPS Serial
+  // 6. Initialize GPS Serial
   gpsSerial.begin(GPS_BAUD, SERIAL_8N1, GPS_RX_PIN, GPS_TX_PIN);
   Serial.println("[GPS] NEO-6M Serial2 started on RX: GPIO 16, TX: GPIO 17 @ 9600 baud");
 
-  // 6. Initialize LoRa Module
+  // 7. Initialize LoRa Module
   Serial.print("[LoRa] Initializing SPI & SX1278... ");
   SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_SS);
   LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
@@ -172,6 +180,18 @@ void loop() {
     }
 
     // ----------------------------------------------------
+    // Read Analog IR Spectrometer (GPIO 34 ADC1)
+    // ----------------------------------------------------
+    int spec_raw = 0;
+    for (int i = 0; i < 4; i++) {
+      spec_raw += analogRead(IR_SPEC_PIN);
+      delay(2);
+    }
+    spec_raw /= 4;
+    float spec_v = (spec_raw / 4095.0F) * 3.3F;
+    float spec_pct = (spec_raw / 4095.0F) * 100.0F;
+
+    // ----------------------------------------------------
     // Read GPS Data & Diagnostics
     // ----------------------------------------------------
     double lat = gps.location.isValid() ? gps.location.lat() : 0.0;
@@ -185,16 +205,16 @@ void loop() {
 
     // ----------------------------------------------------
     // Construct Compact CSV Telemetry Packet
-    // Format: PKT,COUNT,AX,AY,AZ,GX,GY,GZ,BMP_T,PRESS,ALT,AMB_T,OBJ_T,LAT,LNG,GPS_ALT,SATS
     // ----------------------------------------------------
     char packet[256];
     snprintf(packet, sizeof(packet),
-      "PKT:%lu,A:%.2f/%.2f/%.2f,G:%.2f/%.2f/%.2f,T:%.1f,P:%.1f,H:%.1f,IR:%.1f/%.1f,GPS:%.6f/%.6f/%.1f,SAT:%d",
+      "PKT:%lu,A:%.2f/%.2f/%.2f,G:%.2f/%.2f/%.2f,T:%.1f,P:%.1f,H:%.1f,IR:%.1f/%.1f,SPEC:%d/%.1f,GPS:%.6f/%.6f/%.1f,SAT:%d",
       packetCounter,
       ax, ay, az,
       gx, gy, gz,
       bmp_temp, bmp_press, bmp_alt,
       amb_temp, obj_temp,
+      spec_raw, spec_pct,
       lat, lng, gps_alt, sats
     );
 
@@ -215,6 +235,7 @@ void loop() {
     Serial.printf("  IMU (m/s^2)  : Accel [X: %.2f, Y: %.2f, Z: %.2f] | Gyro [X: %.2f, Y: %.2f, Z: %.2f]\n", ax, ay, az, gx, gy, gz);
     Serial.printf("  BMP280       : Temp: %.2f C | Press: %.2f hPa | Alt: %.2f m\n", bmp_temp, bmp_press, bmp_alt);
     Serial.printf("  MLX90614     : Ambient: %.2f C | Object (Target): %.2f C\n", amb_temp, obj_temp);
+    Serial.printf("  IR Spectrometer: Raw ADC: %d | Voltage: %.2f V | Radiance Index: %.1f %%\n", spec_raw, spec_v, spec_pct);
     Serial.printf("  GPS NEO-6M   : Lat: %.6f | Lon: %.6f | Alt: %.1f m | Speed: %.1f km/h | Sats: %d\n", lat, lng, gps_alt, speed_kmph, sats);
     Serial.printf("  GPS Diag     : NMEA Chars: %lu | Fix Sentences: %lu | Checksum Err: %lu\n", chars, fixes, failed);
     if (chars == 0) {

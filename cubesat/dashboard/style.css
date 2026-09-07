@@ -203,6 +203,10 @@ body {
   grid-column: span 3;
 }
 
+.panel-spec {
+  grid-column: span 3;
+}
+
 .panel-chart {
   grid-column: span 9;
 }
@@ -512,6 +516,7 @@ body {
 .bar-fill.cyan { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
 .bar-fill.lime { background: var(--lime); box-shadow: 0 0 8px var(--lime); }
 .bar-fill.amber { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+.bar-fill.magenta { background: #d946ef; box-shadow: 0 0 8px #d946ef; }
 
 /* ==========================================================================
    MLX90614 THERMAL GAUGES
@@ -730,5 +735,6 @@ body {
 .cyber-lime { color: var(--lime); }
 .cyber-amber { color: var(--amber); }
 .cyber-red { color: var(--red); }
+.cyber-magenta { color: #d946ef; }
 .number-font { font-family: var(--font-mono); }
 .val-mono { color: #fff; font-weight: 500; }

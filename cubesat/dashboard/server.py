@@ -34,6 +34,7 @@ latest_telemetry = {
     "mpu": {"ax": 0.0, "ay": 0.0, "az": 9.8, "gx": 0.0, "gy": 0.0, "gz": 0.0},
     "bmp": {"temp": 0.0, "pressure": 1013.25, "altitude": 0.0},
     "mlx": {"ambient": 0.0, "object": 0.0},
+    "spec": {"raw": 0, "voltage": 0.0, "intensity": 0.0},
     "gps": {"lat": 12.9602, "lng": 79.1384, "alt": 0.0, "sats": 0},
     "lora": {"status": "STANDBY", "rssi": 0, "snr": 0.0, "gs_packets": 0}
 }
@@ -42,14 +43,13 @@ telemetry_lock = threading.Lock()
 subscribers = []
 subscribers_lock = threading.Lock()
 
-# Regex: match core packet (works for both direct USB and LoRa ground station output)
+# Regex: match core packet (supports optional SPEC spectrometer field)
 PKT_REGEX = re.compile(
-    r'PKT:(\d+),A:([^,]+),G:([^,]+),T:([^,]+),P:([^,]+),H:([^,]+),IR:([^,]+),GPS:([^,]+),SAT:(\d+)'
+    r'PKT:(\d+),A:([^,]+),G:([^,]+),T:([^,]+),P:([^,]+),H:([^,]+),IR:([^,]+)'
 )
-# Regex: match optional ground station RF link quality appended fields
-RF_LINK_REGEX = re.compile(
-    r'RSSI:(-?\d+),SNR:([\d.\-]+),GS_PKT:(\d+)'
-)
+GPS_REGEX = re.compile(r'GPS:([^,]+),SAT:(\d+)')
+SPEC_REGEX = re.compile(r'SPEC:([\d.]+)/([\d.]+)')
+RF_LINK_REGEX = re.compile(r'RSSI:(-?\d+),SNR:([\d.\-]+),GS_PKT:(\d+)')
 
 def auto_detect_port():
     """Scan available serial ports and return first CP210x / CH340 / FTDI device."""
@@ -87,9 +87,26 @@ def parse_telemetry_line(line_str):
         bmp_h = float(match.group(6))
         
         mlx_amb, mlx_obj = [float(v) for v in match.group(7).split('/')]
-        
-        lat, lng, gps_alt = [float(v) for v in match.group(8).split('/')]
-        sats = int(match.group(9))
+
+        # Parse GPS
+        lat, lng, gps_alt, sats = 0.0, 0.0, 0.0, 0
+        gps_match = GPS_REGEX.search(line_str)
+        if gps_match:
+            lat, lng, gps_alt = [float(v) for v in gps_match.group(1).split('/')]
+            sats = int(gps_match.group(2))
+
+        # Parse Spectrometer (GPIO 34)
+        spec_data = {"raw": 0, "voltage": 0.0, "intensity": 0.0}
+        spec_match = SPEC_REGEX.search(line_str)
+        if spec_match:
+            s_raw = int(float(spec_match.group(1)))
+            s_pct = float(spec_match.group(2))
+            s_v = round((s_raw / 4095.0) * 3.3, 2)
+            spec_data = {
+                "raw": s_raw,
+                "voltage": s_v,
+                "intensity": round(s_pct, 1)
+            }
         
         data = {
             "connected": True,
@@ -109,6 +126,7 @@ def parse_telemetry_line(line_str):
                 "ambient": round(mlx_amb, 2),
                 "object": round(mlx_obj, 2)
             },
+            "spec": spec_data,
             "gps": {
                 "lat": round(lat, 6),
                 "lng": round(lng, 6),
@@ -134,7 +152,7 @@ def parse_telemetry_line(line_str):
         with telemetry_lock:
             latest_telemetry = data
             
-        print(f"[Telemetry #{pkt_num}] Alt: {bmp_h:.1f}m | Temp: {bmp_t:.1f}C | Accel: [{ax:.2f},{ay:.2f},{az:.2f}] | Sats: {sats}")
+        print(f"[Telemetry #{pkt_num}] Alt: {bmp_h:.1f}m | Temp: {bmp_t:.1f}C | Spec: {spec_data['intensity']}% ({spec_data['voltage']}V) | Sats: {sats}")
 
         # Dispatch to all active SSE subscribers
         payload = f"data: {json.dumps(data)}\n\n".encode('utf-8')
