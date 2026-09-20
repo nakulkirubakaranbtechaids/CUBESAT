@@ -6,6 +6,8 @@ import json
 import re
 import os
 import sys
+import csv
+from datetime import datetime
 
 # Ensure UTF-8 output encoding on Windows console
 if sys.platform == 'win32':
@@ -13,6 +15,79 @@ if sys.platform == 'win32':
         sys.stdout.reconfigure(encoding='utf-8')
     except Exception:
         pass
+
+# ==========================================
+# CSV TELEMETRY LOG CONFIGURATION (HOST LOCATION)
+# ==========================================
+CSV_LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+os.makedirs(CSV_LOG_DIR, exist_ok=True)
+CSV_LOG_PATH = os.path.join(CSV_LOG_DIR, "telemetry_log.csv")
+csv_lock = threading.Lock()
+
+CSV_HEADERS = [
+    "timestamp_iso",
+    "timestamp_epoch",
+    "packet_num",
+    "source",
+    "accel_x", "accel_y", "accel_z",
+    "gyro_x", "gyro_y", "gyro_z",
+    "bmp_temp_c", "bmp_pressure_hpa", "bmp_altitude_m",
+    "mlx_ambient_c", "mlx_object_c", "mlx_delta_c",
+    "spec_raw", "spec_voltage_v", "spec_intensity_pct",
+    "gps_lat", "gps_lng", "gps_alt_m", "gps_sats",
+    "lora_rssi_dbm", "lora_snr_db", "gs_packets",
+    "raw_packet"
+]
+
+def init_csv_log():
+    """Ensure host CSV file exists with proper headers."""
+    with csv_lock:
+        file_exists = os.path.exists(CSV_LOG_PATH) and os.path.getsize(CSV_LOG_PATH) > 0
+        if not file_exists:
+            with open(CSV_LOG_PATH, mode='w', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(CSV_HEADERS)
+            print(f"[CSV Logger] Created new host telemetry CSV log: {CSV_LOG_PATH}")
+        else:
+            print(f"[CSV Logger] Host telemetry CSV log active at: {CSV_LOG_PATH}")
+
+def log_telemetry_to_csv(data, source="Serial"):
+    """Append a parsed telemetry dictionary to the host CSV file."""
+    try:
+        ts = data.get("timestamp", time.time())
+        dt_iso = datetime.fromtimestamp(ts).isoformat()
+        
+        mpu = data.get("mpu", {})
+        bmp = data.get("bmp", {})
+        mlx = data.get("mlx", {})
+        spec = data.get("spec", {})
+        gps = data.get("gps", {})
+        lora = data.get("lora", {})
+        
+        delta_t = round(mlx.get("object", 0.0) - mlx.get("ambient", 0.0), 2)
+        
+        row = [
+            dt_iso,
+            ts,
+            data.get("packet", 0),
+            source,
+            mpu.get("ax", 0.0), mpu.get("ay", 0.0), mpu.get("az", 0.0),
+            mpu.get("gx", 0.0), mpu.get("gy", 0.0), mpu.get("gz", 0.0),
+            bmp.get("temp", 0.0), bmp.get("pressure", 0.0), bmp.get("altitude", 0.0),
+            mlx.get("ambient", 0.0), mlx.get("object", 0.0), delta_t,
+            spec.get("raw", 0), spec.get("voltage", 0.0), spec.get("intensity", 0.0),
+            gps.get("lat", 0.0), gps.get("lng", 0.0), gps.get("alt", 0.0), gps.get("sats", 0),
+            lora.get("rssi", 0), lora.get("snr", 0.0), lora.get("gs_packets", 0),
+            data.get("raw", "")
+        ]
+        
+        with csv_lock:
+            with open(CSV_LOG_PATH, mode='a', newline='', encoding='utf-8') as f:
+                writer = csv.writer(f)
+                writer.writerow(row)
+    except Exception as e:
+        print(f"[CSV Logger Error] Failed to write telemetry row: {e}")
+
 
 try:
     import serial
@@ -35,7 +110,7 @@ latest_telemetry = {
     "bmp": {"temp": 0.0, "pressure": 1013.25, "altitude": 0.0},
     "mlx": {"ambient": 0.0, "object": 0.0},
     "spec": {"raw": 0, "voltage": 0.0, "intensity": 0.0},
-    "gps": {"lat": 12.9602, "lng": 79.1384, "alt": 0.0, "sats": 0},
+    "gps": {"lat": 0.0, "lng": 0.0, "alt": 0.0, "sats": 0},
     "lora": {"status": "STANDBY", "rssi": 0, "snr": 0.0, "gs_packets": 0}
 }
 
@@ -70,7 +145,7 @@ def auto_detect_port():
         print(f"[Auto-detect] Error: {e}")
     return 'COM3'
 
-def parse_telemetry_line(line_str):
+def parse_telemetry_line(line_str, source="Serial"):
     global latest_telemetry
     match = PKT_REGEX.search(line_str)
     if not match:
@@ -153,6 +228,9 @@ def parse_telemetry_line(line_str):
             latest_telemetry = data
             
         print(f"[Telemetry #{pkt_num}] Alt: {bmp_h:.1f}m | Temp: {bmp_t:.1f}C | Spec: {spec_data['intensity']}% ({spec_data['voltage']}V) | Sats: {sats}")
+
+        # Store to host CSV log file
+        log_telemetry_to_csv(data, source=source)
 
         # Dispatch to all active SSE subscribers
         payload = f"data: {json.dumps(data)}\n\n".encode('utf-8')
@@ -238,11 +316,22 @@ def serial_reader_thread():
                 except Exception:
                     pass
 
+DIST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dist')
+STATIC_DIR = DIST_DIR if os.path.exists(DIST_DIR) else os.path.dirname(os.path.abspath(__file__))
+
 class TelemetryHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=os.path.dirname(os.path.abspath(__file__)), **kwargs)
+        super().__init__(*args, directory=STATIC_DIR, **kwargs)
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
 
     def do_GET(self):
+
         if self.path == '/api/latest':
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
@@ -281,6 +370,22 @@ class TelemetryHandler(http.server.SimpleHTTPRequestHandler):
                 with subscribers_lock:
                     if self.wfile in subscribers:
                         subscribers.remove(self.wfile)
+            return
+            
+        elif self.path in ['/api/download_csv', '/api/telemetry.csv', '/api/logs/csv']:
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/csv; charset=utf-8')
+            self.send_header('Content-Disposition', 'attachment; filename="telemetry_log.csv"')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            
+            with csv_lock:
+                if os.path.exists(CSV_LOG_PATH):
+                    with open(CSV_LOG_PATH, 'rb') as f:
+                        self.wfile.write(f.read())
+                else:
+                    header_line = ','.join(CSV_HEADERS) + '\n'
+                    self.wfile.write(header_line.encode('utf-8'))
             return
             
         # Default static file serving (index.html, style.css, app.js)
@@ -326,7 +431,7 @@ def udp_reader_thread():
                 else:
                     print(f"[WiFi IN from {addr[0]}] {line}")
                 
-                parsed = parse_telemetry_line(line)
+                parsed = parse_telemetry_line(line, source=f"WiFi ({addr[0]})")
                 if parsed:
                     with telemetry_lock:
                         latest_telemetry["source"] = f"WiFi ({addr[0]})"
@@ -344,6 +449,9 @@ def main():
 
     PORT = args.port
     SERIAL_PORT = args.serial_port
+
+    # Initialize CSV logger in host location
+    init_csv_log()
 
     # 1. Start WiFi UDP background receiver
     t_udp = threading.Thread(target=udp_reader_thread, daemon=True)

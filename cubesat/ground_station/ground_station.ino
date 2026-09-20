@@ -29,8 +29,8 @@
 // If it cannot connect to your router, it automatically creates
 // its own Hotspot: "CubeSat-GS-WiFi" (Password: "cubesat1234")
 // ==========================================
-const char *WIFI_SSID = "DAREDEVILS2.4GHz"; // <-- Put your WiFi Name here
-const char *WIFI_PASS = "KKPPN@8826";       // <-- Put your WiFi Password here
+const char *WIFI_SSID = "Nakul";      // <-- Put your WiFi Name here
+const char *WIFI_PASS = "1234567890"; // <-- Put your WiFi Password here
 
 const char *AP_SSID = "CubeSat-GS-WiFi";
 const char *AP_PASS = "cubesat1234";

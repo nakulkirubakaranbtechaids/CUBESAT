@@ -1,0 +1,21 @@
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #060b13;
+  color: #f1f5f9;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom Leaflet Pulse Sat Icon */
+.custom-sat-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

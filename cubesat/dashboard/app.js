@@ -1,8 +1,9 @@
+
 // ==========================================================================
 // CUBESAT MISSION CONTROL - MAIN APPLICATION LOGIC
 // ==========================================================================
 
-let map, marker, trackPolyline;
+let map, marker, trackPolyline, satIcon;
 let trackHistory = [];
 let telemetryChart;
 let cubeMesh;
@@ -129,8 +130,8 @@ function initThreeJSAttitude() {
 
     // Smooth interpolation (lerp) toward target pitch, roll, yaw
     currentPitch += (targetPitch - currentPitch) * 0.1;
-    currentRoll  += (targetRoll - currentRoll) * 0.1;
-    currentYaw   += (targetYaw - currentYaw) * 0.05;
+    currentRoll += (targetRoll - currentRoll) * 0.1;
+    currentYaw += (targetYaw - currentYaw) * 0.05;
 
     if (cubeMesh) {
       cubeMesh.rotation.x = currentPitch;
@@ -155,14 +156,11 @@ function initThreeJSAttitude() {
 // 4. LEAFLET GPS MAP (NEO-6M)
 // ==========================================================================
 function initLeafletMap() {
-  // Default coordinates (e.g. from telemetry: 12.960263, 79.138419)
-  const initialLat = 12.960263;
-  const initialLng = 79.138419;
-
+  // Start with global overview (no mock marker or mock coords)
   map = L.map('gps-map', {
     zoomControl: true,
     attributionControl: false
-  }).setView([initialLat, initialLng], 15);
+  }).setView([20, 0], 2);
 
   // Clean OpenStreetMap tiles (dark styled via CSS filter)
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -170,8 +168,8 @@ function initLeafletMap() {
     subdomains: 'abc'
   }).addTo(map);
 
-  // Custom Pulsing Satellite Marker
-  const satIcon = L.divIcon({
+  // Custom Pulsing Satellite Marker Icon
+  satIcon = L.divIcon({
     className: 'custom-sat-icon',
     html: `<div style="
       width: 14px;
@@ -185,9 +183,6 @@ function initLeafletMap() {
     iconAnchor: [7, 7]
   });
 
-  marker = L.marker([initialLat, initialLng], { icon: satIcon }).addTo(map);
-  marker.bindPopup("<b style='color:#000;'>CubeSat-1</b><br>Ground Track Location");
-
   trackPolyline = L.polyline([], {
     color: '#00f0ff',
     weight: 3,
@@ -197,17 +192,24 @@ function initLeafletMap() {
 }
 
 function updateGPSPosition(lat, lng, alt) {
-  if (!map || !marker) return;
+  if (!map) return;
   if (lat === 0 && lng === 0) return; // Wait for valid GPS fix
 
   const newLatLng = new L.LatLng(lat, lng);
-  marker.setLatLng(newLatLng);
+
+  // Create marker on first valid GPS fix or update existing position
+  if (!marker) {
+    marker = L.marker(newLatLng, { icon: satIcon }).addTo(map);
+    marker.bindPopup("<b style='color:#000;'>CubeSat-1</b><br>Ground Track Location");
+    map.setView(newLatLng, 15);
+  } else {
+    marker.setLatLng(newLatLng);
+    map.panTo(newLatLng);
+  }
 
   trackHistory.push(newLatLng);
   if (trackHistory.length > 200) trackHistory.shift();
   trackPolyline.setLatLngs(trackHistory);
-
-  map.panTo(newLatLng);
 }
 
 // ==========================================================================
@@ -379,7 +381,7 @@ function processTelemetry(data) {
   // LoRa RF link quality (ground station mode)
   if (data.lora) {
     const rssiEl = document.getElementById('val-lora-rssi');
-    const snrEl  = document.getElementById('val-lora-snr');
+    const snrEl = document.getElementById('val-lora-snr');
     const loraStatusEl = document.getElementById('val-lora-status');
     if (rssiEl && data.lora.rssi !== 0) {
       rssiEl.innerText = data.lora.rssi + ' dBm';
@@ -416,7 +418,7 @@ function processTelemetry(data) {
     const naz = az / norm;
 
     targetPitch = Math.atan2(-nax, Math.sqrt(nay * nay + naz * naz));
-    targetRoll  = Math.atan2(nay, naz);
+    targetRoll = Math.atan2(nay, naz);
   }
 
   // Only accumulate yaw if angular rate is genuinely rotating (deadband threshold > 0.35 rad/s)
@@ -426,8 +428,8 @@ function processTelemetry(data) {
   }
 
   const pitchDeg = (targetPitch * (180 / Math.PI)).toFixed(1);
-  const rollDeg  = (targetRoll * (180 / Math.PI)).toFixed(1);
-  const yawDeg   = ((targetYaw * (180 / Math.PI)) % 360).toFixed(1);
+  const rollDeg = (targetRoll * (180 / Math.PI)).toFixed(1);
+  const yawDeg = ((targetYaw * (180 / Math.PI)) % 360).toFixed(1);
 
   document.getElementById('val-pitch').innerText = (pitchDeg >= 0 ? '+' : '') + pitchDeg + '°';
   document.getElementById('val-roll').innerText = (rollDeg >= 0 ? '+' : '') + rollDeg + '°';
