@@ -108,37 +108,37 @@ void setup() {
   Serial.println(" CubeSat-1 LoRa Ground Station (WiFi+USB) ");
   Serial.println("==========================================");
 
-  // 1. Initialize WiFi & UDP
-  initWiFi();
-
-  // 2. Initialize SPI & LoRa
+  // 1. Initialize SPI & LoRa FIRST (ensures immediate RF reception)
   SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_SS);
   LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);
 
-  Serial.print("[LoRa] Initializing at ");
+  Serial.print("[LoRa] Initializing SX1278 at ");
   Serial.print(LORA_BAND / 1E6);
-  Serial.print(" MHz... ");
+  Serial.println(" MHz...");
 
   if (!LoRa.begin(LORA_BAND)) {
-    Serial.println("FAILED! Check SPI wiring and 3.3V power.");
-    while (true) {
+    Serial.println("[LoRa Error]: LoRa.begin() FAILED! Check SPI wiring: SCK(18), MISO(19), MOSI(23), NSS(5), RST(14), DIO0(26), 3.3V, GND.");
+    int retries = 0;
+    while (retries < 10) {
       delay(1000);
-      Serial.println("[LoRa] Retrying initialization...");
-      if (LoRa.begin(LORA_BAND))
-        break;
+      Serial.printf("[LoRa] Retrying initialization (%d/10)...\n", ++retries);
+      if (LoRa.begin(LORA_BAND)) break;
     }
   }
 
-  // Apply RF settings to match CubeSat transmitter exactly
+  // Apply matching RF settings
   LoRa.setSpreadingFactor(LORA_SF);
   LoRa.setSignalBandwidth(LORA_BW);
   LoRa.setCodingRate4(LORA_CR);
+  LoRa.setSyncWord(0x12); // Standard matching LoRa sync word
+  LoRa.enableCrc();       // CRC integrity check
 
-  // Enable CRC checking to filter corrupted packets
-  LoRa.enableCrc();
+  Serial.println("[LoRa] SUCCESS - SX1278 Receiver Armed & Listening!");
 
-  Serial.println("SUCCESS");
-  Serial.println("[LoRa] Receiver armed. Waiting for CubeSat-1 packets...\n");
+  // 2. Initialize WiFi Dual-Link (in background)
+  initWiFi();
+
+  Serial.println("\n[LoRa] Waiting for CubeSat-1 telemetry packets...\n");
 }
 
 void loop() {

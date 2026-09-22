@@ -3,342 +3,621 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CubeSat-1 Ground Station | Live Telemetry</title>
+  <title>CUBESAT-1 &bull; Flight Operations & Ground Station</title>
+  
+  <!-- High-Precision Aerospace Typography: Space Grotesk, Inter & Roboto Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   
-  <!-- Leaflet CSS for GPS Map -->
+  <!-- Leaflet Map CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   
-  <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="style.css">
+  <!-- Aerospace Master Stylesheet -->
+  <link rel="stylesheet" href="style.css?v=25">
 </head>
-<body>
-  <!-- FLOATING RF LINK HANDSHAKE TOAST -->
-  <div id="link-toast" class="link-toast hidden">
-    <span class="toast-icon">🚀</span>
-    <div class="toast-content">
-      <strong id="toast-title">LORA RF LINK ESTABLISHED</strong>
-      <span id="toast-msg">HELLO Handshake Received from CubeSat-1!</span>
-    </div>
-  </div>
-
-  <div class="dashboard-container">
-    <!-- TOP HUD HEADER -->
-    <header class="hud-header">
-      <div class="header-branding">
-        <div class="mission-badge">
-          <span class="pulse-ring"></span>
-          <span class="mission-dot"></span>
-        </div>
-        <div>
-          <h1 class="mission-title">CUBESAT-1 TELEMETRY GROUND STATION</h1>
-          <span class="mission-subtitle">ESP32 MULTI-SENSOR AVIONICS &bull; LORA 433 MHz &bull; REAL-TIME LINK</span>
-        </div>
-      </div>
-
-      <div class="header-metrics">
-        <div class="metric-card header-status">
-          <span class="label">COM3 SERIAL</span>
-          <div class="val-group">
-            <span class="status-indicator online" id="status-serial"></span>
-            <span class="value" id="val-serial-text">CONNECTED</span>
-          </div>
-        </div>
-
-        <div class="metric-card">
-          <span class="label">LORA RF LINK</span>
-          <div class="val-group">
-            <span class="status-indicator online" id="status-lora"></span>
-            <span class="value cyber-cyan" id="val-lora-status">ACTIVE</span>
-          </div>
-        </div>
-
-        <div class="metric-card">
-          <span class="label">RSSI (dBm)</span>
-          <span class="value number-font" id="val-lora-rssi">--</span>
-        </div>
-
-        <div class="metric-card">
-          <span class="label">SNR (dB)</span>
-          <span class="value number-font cyber-lime" id="val-lora-snr">--</span>
-        </div>
-
-        <div class="metric-card">
-          <span class="label">PACKETS RECEIVED</span>
-          <span class="value number-font" id="val-packet-count">0</span>
-        </div>
-
-        <div class="metric-card">
-          <span class="label">UTC MISSION TIME</span>
-          <span class="value number-font cyber-lime" id="utc-clock">00:00:00 UTC</span>
-        </div>
-      </div>
-    </header>
-
-    <!-- MAIN GRID DASHBOARD -->
-    <main class="grid-layout">
+<body class="theme-light">
+  <div class="mc-app">
+    
+    <!-- ====================================================================
+         TOP FLIGHT OPERATIONS HEADER & HUD
+         ==================================================================== -->
+    <header class="mc-header">
       
-      <!-- LEFT COLUMN: 3D ATTITUDE + INERTIAL GUIDANCE -->
-      <section class="card panel-imu">
-        <div class="card-header">
-          <div class="title-with-icon">
+      <!-- Left: Spacecraft Identification & Link Parameters -->
+      <div class="header-section header-left">
+        <div class="sat-badge-container">
+          <div class="status-beacon-ring">
+            <span class="beacon-core" id="beacon-core"></span>
+            <span class="beacon-pulse" id="beacon-pulse"></span>
+          </div>
+          <div class="sat-identity-text">
+            <div class="sat-name-row">
+              <span class="sat-name">CUBESAT-1</span>
+              <span class="sat-norad mono">1U &bull; ID #99401</span>
+              <span class="mission-phase-tag" id="val-mission-phase">CORAL REEF SCAN</span>
+            </div>
+            <div class="rf-params-row mono">
+              <span class="rf-freq text-cyan">SX1278 433 MHz</span>
+              <span class="rf-sep">&bull;</span>
+              <span class="rf-cfg">CORAL SENSING PAYLOAD</span>
+              <span class="rf-sep">&bull;</span>
+              <span class="rf-cfg">MLX+SPEC IR</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center: High-Precision Mission Chronometers -->
+      <div class="header-section header-center">
+        <div class="chrono-card">
+          <span class="chrono-label">MISSION ELAPSED TIME (MET)</span>
+          <div class="chrono-digits mono">
+            <span id="met-clock">00:00:00:00</span>
+            <span class="chrono-ms" id="met-ms">.000</span>
+          </div>
+        </div>
+        <div class="chrono-divider"></div>
+        <div class="chrono-card">
+          <span class="chrono-label">UNIVERSAL TIME COORDINATED (UTC)</span>
+          <div class="chrono-digits mono text-cyan">
+            <span id="utc-clock">00:00:00</span>
+            <span class="chrono-utc-tag">UTC</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Link Status, Signal Meter & Action Hub -->
+      <div class="header-section header-right">
+        
+        <!-- Serial Hardware Link -->
+        <div class="telemetry-hud-block">
+          <span class="hud-label">SERIAL LINK</span>
+          <div class="hud-status-row">
+            <span class="status-indicator online" id="status-serial"></span>
+            <span class="hud-val mono" id="val-serial-text">CONNECTED</span>
+          </div>
+        </div>
+
+        <!-- LoRa Downlink Status -->
+        <div class="telemetry-hud-block">
+          <span class="hud-label">CARRIER LOCK</span>
+          <div class="hud-status-row">
+            <span class="status-indicator online" id="status-lora"></span>
+            <span class="hud-val mono text-emerald" id="val-lora-status">SYNCHRONIZED</span>
+          </div>
+        </div>
+
+        <!-- Real-Time RF Signal Strength Meter -->
+        <div class="telemetry-hud-block rf-meter-block">
+          <div class="hud-label-row">
+            <span class="hud-label">RF SIGNAL</span>
+            <span class="hud-sub-label mono" id="val-rf-snr">SNR: -- dB</span>
+          </div>
+          <div class="rf-signal-container">
+            <div class="rf-signal-bars" id="rf-bars">
+              <span class="sig-bar bar-1"></span>
+              <span class="sig-bar bar-2"></span>
+              <span class="sig-bar bar-3"></span>
+              <span class="sig-bar bar-4"></span>
+              <span class="sig-bar bar-5"></span>
+            </div>
+            <span class="hud-val mono text-cyan" id="val-rf-rssi">-- dBm</span>
+          </div>
+        </div>
+
+        <!-- Frame Count & Health -->
+        <div class="telemetry-hud-block">
+          <span class="hud-label">FRAMES RX</span>
+          <span class="hud-val mono text-cyan" id="val-packet-count">#0</span>
+        </div>
+
+          <!-- Reef Health Distress Alerts Hub Button -->
+          <button id="btn-health-alerts" class="hud-action-btn btn-alert-hud" title="View reefs under critical thermal stress or bleaching alert">
+            <span class="alert-pulse-dot"></span>
+            <span id="alert-hud-text">6 ALERTS</span>
+          </button>
+
+          <!-- Theme Toggle (Light / Dark) -->
+          <button id="btn-theme-toggle" class="hud-action-btn" title="Toggle Light / Dark theme">
+            <span id="theme-btn-icon">☀️</span>
+            <span id="theme-btn-text">LIGHT</span>
+          </button>
+
+          <!-- Download CSV -->
+          <a href="/api/download_csv" download="telemetry_log.csv" class="hud-action-btn btn-export" id="btn-export-csv" title="Download host CSV telemetry log file">
             <svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="2" y1="12" x2="22" y2="12"></line>
-              <line x1="12" y1="2" x2="12" y2="22"></line>
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
-            <h2>3D ATTITUDE & ORIENTATION (MPU-6050)</h2>
+            <span>CSV LOG</span>
+          </a>
+
+          <!-- Telemetry Sim Mode Toggle -->
+          <button id="btn-sim-mode" class="hud-action-btn" title="Toggle real hardware vs test telemetry simulation generator">
+            <svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            <span id="btn-sim-text">SIM: OFF</span>
+          </button>
+
+          <!-- Audio Telemetry RX Tone Toggle -->
+          <button id="btn-audio-toggle" class="hud-action-btn" title="Toggle audio beeper on telemetry frame arrival">
+            <svg class="hud-icon" id="audio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+              <line x1="23" y1="9" x2="17" y2="15"></line>
+              <line x1="17" y1="9" x2="23" y2="15"></line>
+            </svg>
+          </button>
+
+          <!-- Fullscreen Cockpit Mode -->
+          <button id="btn-fullscreen" class="hud-action-btn" title="Toggle Fullscreen Cockpit Mode">
+            <svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+            </svg>
+          </button>
+
+        </div>
+      </header>
+
+    <!-- SYSTEM ALERTS BANNER -->
+    <div id="mission-alert-banner" class="alert-banner hidden">
+      <div class="alert-badge" id="alert-badge-type">EVENT</div>
+      <span class="alert-text mono" id="alert-banner-text">Telecommand handshake acknowledged by CubeSat-1</span>
+      <button class="alert-close-btn" onclick="dismissAlertBanner()">✕</button>
+    </div>
+
+    <!-- ====================================================================
+         MAIN MISSION CONTROL FLIGHT COCKPIT
+         ==================================================================== -->
+    <main class="cockpit-grid">
+      
+      <!-- ====================================================================
+           COLUMN 1: ATTITUDE DETERMINATION & 3D SPATIAL GIMBAL (ADCS)
+           ==================================================================== -->
+      <section class="cockpit-col col-adcs">
+        
+        <!-- 3D FLIGHT ORIENTATION GIMBAL -->
+        <div class="panel panel-adcs">
+          <div class="panel-header">
+            <div class="panel-title-wrap">
+              <span class="subsys-badge">ADCS-01</span>
+              <h2 class="panel-title">Attitude & 3D Spatial Vector</h2>
+            </div>
+            <div class="panel-tools">
+              <button id="btn-zero-imu" class="btn-tool" title="Zero yaw orientation offset">ZERO YAW</button>
+              <button id="btn-reset-cam" class="btn-tool" title="Reset 3D camera orientation">RESET CAM</button>
+              <span class="chip-sensor mono">MPU-6050 &bull; 0x68</span>
+            </div>
           </div>
-          <div style="display:flex; align-items:center; gap:8px;">
-            <button id="btn-zero-imu" class="btn-hud" title="Re-zero yaw orientation">ZERO YAW</button>
-            <span class="sensor-badge">I2C: 0x68</span>
+
+          <div class="panel-body panel-3d-body">
+            
+            <!-- 3D Three.js Viewport Container -->
+            <div class="viewport-3d-wrap">
+              <div id="threejs-attitude-canvas"></div>
+              
+              <!-- Flight Horizon HUD Crosshair -->
+              <div class="horizon-hud-overlay">
+                <div class="hud-center-cross"></div>
+                <div class="hud-pitch-tape" id="hud-pitch-ladder">
+                  <div class="ladder-line pos-10"><span>+10</span></div>
+                  <div class="ladder-line zero"><span>0°</span></div>
+                  <div class="ladder-line neg-10"><span>-10</span></div>
+                </div>
+              </div>
+
+              <!-- Euler Angles Readout HUD Overlay -->
+              <div class="euler-hud-box">
+                <div class="euler-item">
+                  <span class="euler-axis-tag pitch-tag">PITCH (&theta;<sub>x</sub>)</span>
+                  <span class="euler-value mono text-cyan" id="val-pitch">+0.0°</span>
+                </div>
+                <div class="euler-item">
+                  <span class="euler-axis-tag roll-tag">ROLL (&phi;<sub>z</sub>)</span>
+                  <span class="euler-value mono text-emerald" id="val-roll">+0.0°</span>
+                </div>
+                <div class="euler-item">
+                  <span class="euler-axis-tag yaw-tag">YAW (&psi;<sub>y</sub>)</span>
+                  <span class="euler-value mono text-amber" id="val-yaw">+0.0°</span>
+                </div>
+              </div>
+
+              <!-- 3D Control Hints Overlay -->
+              <div class="viewport-hints mono">
+                <span>DRAG TO ROTATE &bull; SCROLL TO ZOOM</span>
+              </div>
+            </div>
+
+            <!-- 6-DOF Inertial Dynamics Matrix Table -->
+            <div class="inertial-matrix-card">
+              <div class="matrix-card-header">
+                <span class="mono matrix-title">6-DOF INERTIAL TELEMETRY MATRIX</span>
+                <span class="mono matrix-sub" id="val-total-g">TOTAL G-LOAD: 1.00 G</span>
+              </div>
+              <table class="inertial-table mono">
+                <thead>
+                  <tr>
+                    <th>AXIS</th>
+                    <th class="text-right">ACCEL (m/s²)</th>
+                    <th class="text-right">GYRO (rad/s)</th>
+                    <th class="text-right">G-VECTOR</th>
+                    <th class="text-center">DEFLECTION</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="axis-lbl x-lbl">X-BODY</td>
+                    <td class="text-right val-cell" id="val-acc-x">+0.00</td>
+                    <td class="text-right val-cell" id="val-gyr-x">+0.00</td>
+                    <td class="text-right mono text-rose" id="val-g-x">0.00 G</td>
+                    <td class="bar-cell">
+                      <div class="deflection-track">
+                        <div class="deflection-center"></div>
+                        <div class="deflection-bar x-bar" id="bar-g-x" style="width: 50%;"></div>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="axis-lbl y-lbl">Y-BODY</td>
+                    <td class="text-right val-cell" id="val-acc-y">+0.00</td>
+                    <td class="text-right val-cell" id="val-gyr-y">+0.00</td>
+                    <td class="text-right mono text-emerald" id="val-g-y">0.00 G</td>
+                    <td class="bar-cell">
+                      <div class="deflection-track">
+                        <div class="deflection-center"></div>
+                        <div class="deflection-bar y-bar" id="bar-g-y" style="width: 50%;"></div>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="axis-lbl z-lbl">Z-BODY</td>
+                    <td class="text-right val-cell" id="val-acc-z">+9.80</td>
+                    <td class="text-right val-cell" id="val-gyr-z">+0.00</td>
+                    <td class="text-right mono text-cyan" id="val-g-z">1.00 G</td>
+                    <td class="bar-cell">
+                      <div class="deflection-track">
+                        <div class="deflection-center"></div>
+                        <div class="deflection-bar z-bar" id="bar-g-z" style="width: 75%;"></div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
           </div>
         </div>
 
-        <div class="card-body">
-          <div class="attitude-viewport-container">
-            <div id="threejs-attitude-canvas"></div>
-            <div class="attitude-crosshair"></div>
-            <div class="attitude-angles-overlay">
-              <div>PITCH: <span id="val-pitch" class="cyber-cyan">+0.0°</span></div>
-              <div>ROLL: <span id="val-roll" class="cyber-cyan">+0.0°</span></div>
-              <div>YAW: <span id="val-yaw" class="cyber-cyan">+0.0°</span></div>
-            </div>
-          </div>
-
-          <div class="readout-table">
-            <div class="readout-row header">
-              <span>AXIS</span>
-              <span>ACCEL (m/s²)</span>
-              <span>GYRO (rad/s)</span>
-            </div>
-            <div class="readout-row">
-              <span class="axis-tag x">X</span>
-              <span class="val-mono" id="val-ax">+0.00</span>
-              <span class="val-mono" id="val-gx">+0.00</span>
-            </div>
-            <div class="readout-row">
-              <span class="axis-tag y">Y</span>
-              <span class="val-mono" id="val-ay">+0.00</span>
-              <span class="val-mono" id="val-gy">+0.00</span>
-            </div>
-            <div class="readout-row">
-              <span class="axis-tag z">Z</span>
-              <span class="val-mono" id="val-az">+9.80</span>
-              <span class="val-mono" id="val-gz">+0.00</span>
-            </div>
-          </div>
-        </div>
       </section>
 
-      <!-- MIDDLE COLUMN: GPS TRACKING & MAP -->
-      <section class="card panel-gps">
-        <div class="card-header">
-          <div class="title-with-icon">
-            <svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
-            </svg>
-            <h2>GROUND TRACK & NAVIGATION (NEO-6M GPS)</h2>
+      <!-- ====================================================================
+           COLUMN 2: TACTICAL GROUND TRACK, ORBIT RADAR & DYNAMICS
+           ==================================================================== -->
+      <section class="cockpit-col col-center">
+        
+        <!-- TACTICAL ORBITAL GROUND TRACK MAP -->
+        <div class="panel panel-map">
+          <div class="panel-header">
+            <div class="panel-title-wrap">
+              <span class="subsys-badge">NAV-02</span>
+              <h2 class="panel-title">Coral Reef Scan & Orbit Track</h2>
+            </div>
+            <div class="panel-tools">
+              <!-- Global Coral Reef Target Jump Selector -->
+              <select id="reef-select" class="reef-dropdown" title="Fly camera to world coral reef location and inspect health data">
+                <option value="">🪸 TARGET REEF (55+ SITES)...</option>
+              </select>
+              <button id="btn-toggle-reefs" class="btn-tool active-reef-btn" title="Toggle Coral Reef Overlay Pins">🪸 REEFS: ON</button>
+              
+              <!-- Map Layers -->
+              <div class="map-layer-selector">
+                <button id="btn-layer-sat" class="btn-layer active" title="Google Satellite Imagery">SAT</button>
+                <button id="btn-layer-hybrid" class="btn-layer" title="Google Hybrid (Satellite + Labels)">HYBRID</button>
+                <button id="btn-layer-street" class="btn-layer" title="Street Map">STREETS</button>
+              </div>
+              <div class="gps-fix-indicator" id="gps-fix-pill">
+                <span class="gps-dot" id="gps-fix-dot"></span>
+                <span id="gps-fix-text">SEARCHING FIX</span>
+              </div>
+              <button id="btn-map-center-sat" class="btn-tool" title="Center map on Sub-Satellite point">SAT</button>
+              <button id="btn-map-center-gs" class="btn-tool" title="Center map on Ground Station">GS-01</button>
+            </div>
           </div>
-          <div class="sat-lock-badge">
-            <span class="sat-icon">📡</span>
-            <span>SATS: <strong id="val-gps-sats" class="cyber-lime">0</strong></span>
+
+          <div class="panel-body panel-map-body">
+            
+            <!-- Leaflet Tactical Radar Viewport -->
+            <div id="gps-map" class="tactical-map-viewport"></div>
+
+            <!-- Tactical Navigation Flight Readouts Matrix -->
+            <div class="nav-telemetry-strip mono">
+              <div class="nav-cell">
+                <span class="nav-cell-key">LATITUDE</span>
+                <span class="nav-cell-val" id="val-gps-lat">--.------°</span>
+              </div>
+              <div class="nav-cell">
+                <span class="nav-cell-key">LONGITUDE</span>
+                <span class="nav-cell-val" id="val-gps-lng">--.------°</span>
+              </div>
+              <div class="nav-cell">
+                <span class="nav-cell-key">GPS ALTITUDE</span>
+                <span class="nav-cell-val text-cyan" id="val-gps-alt">-- m</span>
+              </div>
+              <div class="nav-cell">
+                <span class="nav-cell-key">GROUND SPEED</span>
+                <span class="nav-cell-val text-emerald" id="val-gps-spd">0.0 km/h</span>
+              </div>
+              <div class="nav-cell">
+                <span class="nav-cell-key">GNSS SATS</span>
+                <span class="nav-cell-val text-emerald" id="val-gps-sats">0 SATS</span>
+              </div>
+            </div>
+
           </div>
         </div>
 
-        <div class="card-body gps-body">
-          <div id="gps-map" class="map-container"></div>
+        <!-- REAL-TIME FLIGHT DYNAMICS & THERMAL TIME-SERIES CHART -->
+        <div class="panel panel-chart">
+          <div class="panel-header">
+            <div class="panel-title-wrap">
+              <span class="subsys-badge">DYN-03</span>
+              <h2 class="panel-title">Flight Dynamics & Environmental Trends</h2>
+            </div>
+            <div class="chart-channel-pills mono">
+              <span class="pill-chan pill-alt"><span class="pill-dot"></span> Altitude (m)</span>
+              <span class="pill-chan pill-bmp"><span class="pill-dot"></span> Ambient Temp (°C)</span>
+              <span class="pill-chan pill-mlx"><span class="pill-dot"></span> IR Target (°C)</span>
+            </div>
+          </div>
           
-          <div class="gps-telemetry-strip">
-            <div class="gps-stat">
-              <span class="gps-label">LATITUDE</span>
-              <span class="gps-val" id="val-gps-lat"><span class="cyber-amber" style="font-size:0.75rem;">SEARCHING FIX...</span></span>
-            </div>
-            <div class="gps-stat">
-              <span class="gps-label">LONGITUDE</span>
-              <span class="gps-val" id="val-gps-lng"><span style="font-size:0.7rem; color:#94a3b8;">NO FIX</span></span>
-            </div>
-            <div class="gps-stat">
-              <span class="gps-label">GPS ALTITUDE</span>
-              <span class="gps-val cyber-cyan" id="val-gps-alt">WAITING</span>
-            </div>
-            <div class="gps-stat">
-              <span class="gps-label">GROUND SPEED</span>
-              <span class="gps-val cyber-lime" id="val-gps-spd">0.0 km/h</span>
-            </div>
+          <div class="panel-body panel-chart-body">
+            <canvas id="telemetryChart"></canvas>
           </div>
         </div>
+
       </section>
 
-      <!-- RIGHT TOP: ATMOSPHERIC ENVIRONMENT (BMP-280) -->
-      <section class="card panel-bmp">
-        <div class="card-header">
-          <div class="title-with-icon">
-            <svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path>
-            </svg>
-            <h2>ATMOSPHERIC METRICS (BMP-280)</h2>
-          </div>
-          <span class="sensor-badge">I2C: 0x76</span>
-        </div>
-
-        <div class="card-body">
-          <div class="gauge-grid">
-            <div class="metric-dial">
-              <span class="metric-name">BAROMETRIC ALTITUDE</span>
-              <div class="big-metric-display">
-                <span class="big-val cyber-cyan" id="val-bmp-alt">0.0</span>
-                <span class="big-unit">m</span>
-              </div>
-              <div class="bar-gauge">
-                <div class="bar-fill cyan" id="bar-alt" style="width: 25%;"></div>
-              </div>
+      <!-- ====================================================================
+           COLUMN 3: ATMOSPHERIC, THERMAL RADIOMETRY & SPECTROMETRY
+           ==================================================================== -->
+      <section class="cockpit-col col-sensors">
+        
+        <!-- BMP-280 BAROMETRIC ATMOSPHERIC SENSOR -->
+        <div class="panel panel-sensor">
+          <div class="panel-header">
+            <div class="panel-title-wrap">
+              <span class="subsys-badge">ATM-04</span>
+              <h2 class="panel-title">Atmospheric Environment (BMP-280)</h2>
             </div>
-
-            <div class="metric-dial">
-              <span class="metric-name">AIR PRESSURE</span>
-              <div class="big-metric-display">
-                <span class="big-val cyber-lime" id="val-bmp-press">1013.2</span>
-                <span class="big-unit">hPa</span>
-              </div>
-              <div class="bar-gauge">
-                <div class="bar-fill lime" id="bar-press" style="width: 95%;"></div>
-              </div>
-            </div>
-
-            <div class="metric-dial">
-              <span class="metric-name">BMP TEMPERATURE</span>
-              <div class="big-metric-display">
-                <span class="big-val cyber-amber" id="val-bmp-temp">0.0</span>
-                <span class="big-unit">°C</span>
-              </div>
-              <div class="bar-gauge">
-                <div class="bar-fill amber" id="bar-bmp-temp" style="width: 40%;"></div>
-              </div>
+            <div class="panel-tools">
+              <span class="variometer-tag mono" id="val-variometer">V/S: +0.0 m/s</span>
+              <span class="chip-sensor mono">I2C 0x76</span>
             </div>
           </div>
+
+          <div class="panel-body">
+            <div class="instrument-cards-grid">
+              
+              <!-- Altitude -->
+              <div class="instrument-card">
+                <div class="inst-head">
+                  <span class="inst-label">ALTITUDE</span>
+                  <span class="inst-range mono">0-1000m</span>
+                </div>
+                <div class="inst-main-val">
+                  <span class="inst-num mono text-cyan" id="val-bmp-alt">0.0</span>
+                  <span class="inst-unit">m</span>
+                </div>
+                <div class="inst-progress">
+                  <div class="inst-bar bar-cyan" id="bar-alt" style="width: 10%;"></div>
+                </div>
+              </div>
+
+              <!-- Air Pressure -->
+              <div class="instrument-card">
+                <div class="inst-head">
+                  <span class="inst-label">PRESSURE</span>
+                  <span class="inst-range mono">800-1100hPa</span>
+                </div>
+                <div class="inst-main-val">
+                  <span class="inst-num mono text-emerald" id="val-bmp-press">1013.2</span>
+                  <span class="inst-unit">hPa</span>
+                </div>
+                <div class="inst-progress">
+                  <div class="inst-bar bar-emerald" id="bar-press" style="width: 71%;"></div>
+                </div>
+              </div>
+
+              <!-- BMP Temperature -->
+              <div class="instrument-card">
+                <div class="inst-head">
+                  <span class="inst-label">DIE TEMP</span>
+                  <span class="inst-range mono">-10..+65°C</span>
+                </div>
+                <div class="inst-main-val">
+                  <span class="inst-num mono text-amber" id="val-bmp-temp">0.0</span>
+                  <span class="inst-unit">°C</span>
+                </div>
+                <div class="inst-progress">
+                  <div class="inst-bar bar-amber" id="bar-bmp-temp" style="width: 45%;"></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
         </div>
+
+        <!-- MLX-90614 CONTACTLESS INFRARED RADIOMETER -->
+        <div class="panel panel-sensor">
+          <div class="panel-header">
+            <div class="panel-title-wrap">
+              <span class="subsys-badge">THM-05</span>
+              <h2 class="panel-title">Thermal Radiometry (MLX-90614)</h2>
+            </div>
+            <span class="chip-sensor mono">I2C 0x5A</span>
+          </div>
+
+          <div class="panel-body">
+            <div class="instrument-cards-grid">
+              
+              <!-- Object Surface Temp -->
+              <div class="instrument-card">
+                <div class="inst-head">
+                  <span class="inst-label">OBJECT TEMP</span>
+                  <span class="inst-range mono">FOV 90°</span>
+                </div>
+                <div class="inst-main-val">
+                  <span class="inst-num mono text-rose" id="val-mlx-obj">0.0</span>
+                  <span class="inst-unit">°C</span>
+                </div>
+                <span class="inst-caption">Target Radiance</span>
+              </div>
+
+              <!-- Ambient Chassis Temp -->
+              <div class="instrument-card">
+                <div class="inst-head">
+                  <span class="inst-label">AMBIENT TEMP</span>
+                  <span class="inst-range mono">CHASSIS</span>
+                </div>
+                <div class="inst-main-val">
+                  <span class="inst-num mono text-cyan" id="val-mlx-amb">0.0</span>
+                  <span class="inst-unit">°C</span>
+                </div>
+                <span class="inst-caption">Avionics Ambient</span>
+              </div>
+
+              <!-- Thermal Differential Delta T -->
+              <div class="instrument-card">
+                <div class="inst-head">
+                  <span class="inst-label">GRADIENT &Delta;T</span>
+                  <span class="inst-status-tag mono text-emerald" id="val-mlx-status">OK</span>
+                </div>
+                <div class="inst-main-val">
+                  <span class="inst-num mono" id="val-mlx-delta">0.0</span>
+                  <span class="inst-unit">°C</span>
+                </div>
+                <span class="inst-caption" id="val-mlx-caption">Thermal Balance</span>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- OPTICAL SPECTROMETER (GPIO 34 ADC1) -->
+        <div class="panel panel-sensor">
+          <div class="panel-header">
+            <div class="panel-title-wrap">
+              <span class="subsys-badge">SPC-06</span>
+              <h2 class="panel-title">Optical Spectrometer (GPIO 34)</h2>
+            </div>
+            <span class="chip-sensor mono">12-BIT ADC1</span>
+          </div>
+
+          <div class="panel-body">
+            <div class="spectrometer-layout">
+              
+              <div class="spectro-main-meter">
+                <div class="inst-head">
+                  <span class="inst-label">RADIANCE FLUX</span>
+                  <span class="spectro-regime-tag mono" id="val-spec-status">CALIBRATED</span>
+                </div>
+                <div class="inst-main-val">
+                  <span class="inst-num mono text-purple" id="val-spec-pct">0.0</span>
+                  <span class="inst-unit">%</span>
+                </div>
+                <div class="inst-progress">
+                  <div class="inst-bar bar-purple" id="bar-spec" style="width: 15%;"></div>
+                </div>
+              </div>
+
+              <div class="spectro-meta-col mono">
+                <div class="spectro-meta-card">
+                  <span class="meta-label">RAW ADC</span>
+                  <span class="meta-val text-cyan" id="val-spec-raw">0 / 4095</span>
+                </div>
+                <div class="spectro-meta-card">
+                  <span class="meta-label">VOLTAGE</span>
+                  <span class="meta-val text-emerald" id="val-spec-v">0.00 V</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
       </section>
 
-      <!-- RIGHT BOTTOM: INFRARED RADIOMETER (MLX-90614) -->
-      <section class="card panel-mlx">
-        <div class="card-header">
-          <div class="title-with-icon">
-            <svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"></path>
-            </svg>
-            <h2>INFRARED THERMAL RADIOMETER (MLX-90614)</h2>
-          </div>
-          <span class="sensor-badge">I2C: 0x5A</span>
-        </div>
-
-        <div class="card-body">
-          <div class="dual-thermo-grid">
-            <div class="thermo-card">
-              <span class="thermo-label">TARGET / OBJECT TEMP</span>
-              <div class="thermo-val-wrap">
-                <span class="thermo-val cyber-red" id="val-mlx-obj">0.0</span>
-                <span class="thermo-unit">°C</span>
-              </div>
-              <div class="thermo-subtext">Contactless IR Target Surface</div>
+      <!-- ====================================================================
+           FULL-WIDTH BOTTOM ROW: DUAL-MODE TELEMETRY STREAM & LOG
+           ==================================================================== -->
+      <section class="cockpit-col col-full">
+        <div class="panel panel-terminal">
+          
+          <div class="panel-header">
+            <div class="panel-title-wrap">
+              <span class="subsys-badge">TLM-07</span>
+              <h2 class="panel-title">LoRa RF Downlink Telemetry Stream & Frame Inspector</h2>
             </div>
 
-            <div class="thermo-card">
-              <span class="thermo-label">AMBIENT DIE TEMP</span>
-              <div class="thermo-val-wrap">
-                <span class="thermo-val cyber-cyan" id="val-mlx-amb">0.0</span>
-                <span class="thermo-unit">°C</span>
-              </div>
-              <div class="thermo-subtext">Internal Sensor Temperature</div>
+            <!-- Dual View Switcher (Table vs Raw Hex Stream) -->
+            <div class="view-mode-tabs mono">
+              <button class="tab-btn active" id="tab-btn-table" onclick="switchTelemetryView('table')">FRAME MATRIX</button>
+              <button class="tab-btn" id="tab-btn-raw" onclick="switchTelemetryView('raw')">RAW CONSOLE</button>
             </div>
 
-            <div class="thermo-card delta-card">
-              <span class="thermo-label">THERMAL GRADIENT (ΔT)</span>
-              <div class="thermo-val-wrap">
-                <span class="thermo-val" id="val-mlx-delta">0.0</span>
-                <span class="thermo-unit">°C</span>
-              </div>
-              <div class="thermo-subtext" id="val-mlx-status">EQUILIBRIUM</div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- RIGHT COLUMN: ANALOG IR SPECTROMETER (ADC1_CH6 / GPIO 34) -->
-      <section class="card panel-spec">
-        <div class="card-header">
-          <div class="title-with-icon">
-            <svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
-              <polyline points="2 17 12 22 22 17"></polyline>
-              <polyline points="2 12 12 17 22 12"></polyline>
-            </svg>
-            <h2>ANALOG IR SPECTROMETER (GPIO 34)</h2>
-          </div>
-          <span class="sensor-badge">ADC1: 12-Bit</span>
-        </div>
-
-        <div class="card-body">
-          <div class="metric-dial">
-            <span class="metric-name">SPECTRAL RADIANCE INDEX</span>
-            <div class="big-metric-display">
-              <span class="big-val cyber-magenta" id="val-spec-pct">0.0</span>
-              <span class="big-unit">%</span>
-            </div>
-            <div class="bar-gauge">
-              <div class="bar-fill magenta" id="bar-spec" style="width: 10%;"></div>
+            <!-- Terminal Stream Tools -->
+            <div class="panel-tools">
+              <button id="btn-pause-stream" class="btn-tool" title="Pause or resume live streaming">PAUSE</button>
+              <button id="btn-clear-term" class="btn-tool" title="Clear console buffer">CLEAR</button>
+              <a href="/api/download_csv" download="telemetry_log.csv" class="btn-tool btn-tool-emerald" title="Download host CSV telemetry log">
+                <svg class="icon-xs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span>DOWNLOAD CSV</span>
+              </a>
             </div>
           </div>
 
-          <div class="spec-readout-row" style="margin-top: 14px; display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.75rem; background: rgba(0,0,0,0.25); padding: 8px 12px; border-radius: 6px;">
-            <div>RAW ADC: <strong id="val-spec-raw" class="cyber-cyan">0</strong></div>
-            <div>VOLTAGE: <strong id="val-spec-v" class="cyber-lime">0.00 V</strong></div>
-            <div>STATUS: <strong id="val-spec-status" class="cyber-amber">SCANNING</strong></div>
-          </div>
-        </div>
-      </section>
+          <div class="panel-body panel-terminal-body">
+            
+            <!-- VIEW A: LIVE STRUCTURED TELEMETRY TABLE -->
+            <div id="telemetry-table-container" class="telemetry-table-container mono">
+              <table class="telemetry-data-table">
+                <thead>
+                  <tr>
+                    <th>UTC TIME</th>
+                    <th>PKT #</th>
+                    <th>RSSI</th>
+                    <th>SNR</th>
+                    <th>ALT (m)</th>
+                    <th>PRESS (hPa)</th>
+                    <th>BMP (°C)</th>
+                    <th>IR OBJ (°C)</th>
+                    <th>IR AMB (°C)</th>
+                    <th>&Delta;T (°C)</th>
+                    <th>SPEC (%)</th>
+                    <th>ACCEL (X, Y, Z)</th>
+                    <th>SATS</th>
+                    <th>STATUS</th>
+                  </tr>
+                </thead>
+                <tbody id="telemetry-table-body">
+                  <tr class="table-placeholder-row">
+                    <td colspan="14" class="text-center text-muted">Awaiting LoRa telemetry downlink frames from CubeSat-1...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
-      <!-- BOTTOM ROW 1: REAL-TIME CHART -->
-      <section class="card panel-chart">
-        <div class="card-header">
-          <div class="title-with-icon">
-            <svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-            </svg>
-            <h2>FLIGHT DYNAMICS & THERMAL TRENDS</h2>
-          </div>
-          <div class="chart-legend-wrap">
-            <span class="legend-dot cyan"></span> Altitude (m)
-            <span class="legend-dot amber" style="margin-left: 12px;"></span> BMP Temp (°C)
-            <span class="legend-dot red" style="margin-left: 12px;"></span> IR Object (°C)
-          </div>
-        </div>
+            <!-- VIEW B: RAW SERIAL & PACKET CONSOLE -->
+            <div id="telemetry-raw-container" class="terminal-stream-window mono hidden">
+              <div class="stream-line line-sys">[00:00:00.000] GROUND STATION AVIONICS CONSOLE INITIALIZED &bull; LISTENING TO SX1278 RECEIVER</div>
+            </div>
 
-        <div class="card-body chart-body">
-          <canvas id="telemetryChart"></canvas>
-        </div>
-      </section>
-
-      <!-- BOTTOM ROW 2: RAW LORA PACKET TERMINAL -->
-      <section class="card panel-terminal">
-        <div class="card-header">
-          <div class="title-with-icon">
-            <svg class="hud-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="4 17 10 11 4 5"></polyline>
-              <line x1="12" y1="19" x2="20" y2="19"></line>
-            </svg>
-            <h2>LORA RF TELEMETRY STREAM & LOG</h2>
-          </div>
-          <div class="terminal-ctrls">
-            <button id="btn-clear-term" class="btn-term-clear">CLEAR LOG</button>
-          </div>
-        </div>
-
-        <div class="card-body terminal-body">
-          <div id="terminal-feed" class="terminal-feed">
-            <div class="log-line info">[SYSTEM] Ground Station online. Listening to COM3 @ 115200 baud...</div>
           </div>
         </div>
       </section>
@@ -346,12 +625,85 @@
     </main>
   </div>
 
+  <!-- AUTOMATED SATELLITE EMERGENCY NOTIFICATION MODAL -->
+  <div id="authority-alert-modal" class="modal-backdrop hidden">
+    <div class="authority-modal-card">
+      <div class="modal-header">
+        <div class="modal-title-row">
+          <span class="modal-alert-icon">🚨</span>
+          <div>
+            <h3 class="modal-title">AUTOMATED ECOLOGICAL DISTRESS DISPATCH</h3>
+            <span class="modal-subtitle mono text-rose">CubeSat-1 Optical Sensor & Radiometry Warning System</span>
+          </div>
+        </div>
+        <button class="modal-close-btn" onclick="closeAuthorityModal()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="alert-target-authority-card">
+          <span class="modal-lbl">DESTINATION MONITORING AUTHORITY & JURISDICTION:</span>
+          <div class="modal-auth-name" id="modal-auth-name">Tamil Nadu Forest Department & GOMBRT</div>
+          <span class="modal-auth-region mono" id="modal-auth-region">Gulf of Mannar, Tamil Nadu, India</span>
+        </div>
+
+        <div class="telemetry-anomaly-grid mono">
+          <div class="anomaly-cell">
+            <span class="anomaly-key">REEF TARGET</span>
+            <span class="anomaly-val" id="modal-reef-name">Gulf of Mannar Reefs</span>
+          </div>
+          <div class="anomaly-cell">
+            <span class="anomaly-key">HEALTH STATUS</span>
+            <span class="anomaly-val text-rose" id="modal-reef-status">CRITICAL HEAT STRESS</span>
+          </div>
+          <div class="anomaly-cell">
+            <span class="anomaly-key">SEA SURFACE TEMP</span>
+            <span class="anomaly-val text-rose" id="modal-reef-temp">29.8°C (+2.4°C Anomaly)</span>
+          </div>
+          <div class="anomaly-cell">
+            <span class="anomaly-key">HEAT STRESS (DHW)</span>
+            <span class="anomaly-val text-amber" id="modal-reef-dhw">3.2 DHW (Level 2 Warning)</span>
+          </div>
+          <div class="anomaly-cell">
+            <span class="anomaly-key">LIVE CORAL COVER</span>
+            <span class="anomaly-val text-rose" id="modal-reef-cover">14.2% (Degraded)</span>
+          </div>
+          <div class="anomaly-cell">
+            <span class="anomaly-key">SPECTRAL NDVI PROXY</span>
+            <span class="anomaly-val text-cyan" id="modal-reef-spectral">0.19 (Chlorophyll Decline)</span>
+          </div>
+        </div>
+
+        <div class="dispatch-protocol-box mono">
+          <div class="protocol-row">
+            <span class="proto-key">PROTOCOL:</span>
+            <span class="proto-val text-emerald">UNEP / NOAA CORAL REEF WATCH URGENT DISPATCH</span>
+          </div>
+          <div class="protocol-row">
+            <span class="proto-key">DOWNLINK CARRIER:</span>
+            <span class="proto-val">SX1278 433 MHz &bull; TX ID #SAT-ALERT-99401</span>
+          </div>
+          <div class="protocol-row">
+            <span class="proto-key">NOTIFICATION STATUS:</span>
+            <span class="proto-val text-emerald" id="modal-dispatch-status">TRANSMITTING URGENT TELEMETRY TO LOCAL AGENCY...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-modal-cancel" onclick="closeAuthorityModal()">DISMISS</button>
+        <button class="btn-modal-confirm" id="btn-confirm-dispatch" onclick="confirmAuthorityDispatch()">
+          <span>⚡ CONFIRM DISPATCH TO AUTHORITY</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- CDN Dependencies -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
-  <!-- Main Dashboard Script -->
-  <script src="app.js?v=2"></script>
+  <!-- Master Application Script -->
+  <script src="app.js?v=25"></script>
 </body>
 </html>

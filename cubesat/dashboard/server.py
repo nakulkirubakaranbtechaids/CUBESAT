@@ -134,8 +134,8 @@ def auto_detect_port():
         # Prioritize Silicon Labs CP210x (most ESP32 devkits)
         for p in ports:
             desc = (p.description or '').lower()
-            if any(k in desc for k in ['cp210', 'ch340', 'ch341', 'ftdi', 'uart bridge']):
-                print(f"[Auto-detect] Found ESP32 on {p.device}: {p.description}")
+            if any(k in desc for k in ['cp210', 'ch340', 'ch341', 'ch910', 'usb-enhanced-serial', 'ftdi', 'uart bridge', 'usb-to-uart']):
+                print(f"[Auto-detect] Found ESP32 Ground Station on {p.device}: {p.description}")
                 return p.device
         # Fallback: return first available port
         if ports:
@@ -316,12 +316,12 @@ def serial_reader_thread():
                 except Exception:
                     pass
 
-DIST_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dist')
-STATIC_DIR = DIST_DIR if os.path.exists(DIST_DIR) else os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class TelemetryHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=STATIC_DIR, **kwargs)
+
 
     def do_OPTIONS(self):
         self.send_response(200)

@@ -143,7 +143,8 @@ void setup() {
     LoRa.setSpreadingFactor(7);
     LoRa.setSignalBandwidth(125E3);
     LoRa.setCodingRate4(5);
-    LoRa.enableCrc(); // MUST match Ground Station enableCrc()
+    LoRa.setSyncWord(0x12); // Must match Ground Station
+    LoRa.enableCrc();       // MUST match Ground Station enableCrc()
     Serial.println("SUCCESS - LoRa SX1278 Online!");
 
     // Broadcast initial HELLO handshake message to Ground Station
